@@ -1,0 +1,8 @@
+train:
+  active: True
+  experiment_name: "train_unet"
+  dataset:
+    batch_size: 8
+  epochs: 50
+  learning_rate: 000.1
+  log_dir: ""
