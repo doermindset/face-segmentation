@@ -146,3 +146,20 @@ def _check_file(self, filepath: str, md5: str) -> bool:
 def read_params(config_path:str):
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
+
+
+def sample_to_cuda(data):
+    if isinstance(data, str):
+        return data
+    if isinstance(data, dict):
+        data_cuda = {}
+        for key in data.keys():
+            data_cuda[key] = sample_to_cuda(data[key])
+        return data_cuda
+    elif isinstance(data, list):
+        data_cuda = []
+        for key in data:
+            data_cuda.append(sample_to_cuda(key))
+        return data_cuda
+    else:
+        return data.to('cuda')

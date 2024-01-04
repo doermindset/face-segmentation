@@ -1,6 +1,6 @@
 class Config:
 
-    def __int__(self, params):
+    def __init__(self, params):
         if params is not None:
             for key, value in params.items():
                 if isinstance(value, dict):
