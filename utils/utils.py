@@ -6,31 +6,7 @@ import yaml
 from tqdm import tqdm
 
 
-_DATA = (
-        # images
-        ("http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz", None),
-        # segmentation masks as ppm
-        ("https://vis-www.cs.umass.edu/lfw/part_labels/parts_lfw_funneled_gt_images.tgz",
-         "3e7e26e801c3081d651c8c2ef3c45cfc"),
-    )
-_SPLIT_NAMES = {
-        "train": "https://vis-www.cs.umass.edu/lfw/part_labels/parts_train.txt",
-        "validation": "https://vis-www.cs.umass.edu/lfw/part_labels/parts_validation.txt",
-        "test": "https://vis-www.cs.umass.edu/lfw/part_labels/parts_test.txt"
-    }
-
-def download_resources(base_folder):
-    if not os.path.exists(base_folder):
-        os.makedirs(base_folder)
-    _download_and_extract_archive(url=LFWDataset._DATA[1][0], base_folder=base_folder,
-                                       md5=LFWDataset._DATA[1][1])
-    _download_and_extract_archive(url=LFWDataset._DATA[0][0], base_folder=base_folder, md5=None)
-    _download_url(url=LFWDataset._SPLIT_NAMES['train'], base_folder=base_folder, md5=None)
-    _download_url(url=LFWDataset._SPLIT_NAMES['validation'], base_folder=base_folder, md5=None)
-    _download_url(url=LFWDataset._SPLIT_NAMES['test'], base_folder=base_folder, md5=None)
-
-
-def _download_and_extract_archive(self, url, base_folder, md5) -> None:
+def download_and_extract_archive(url, base_folder, md5) -> None:
     """
       Downloads an archive file from a given URL, saves it to the specified base folder,
       and then extracts its contents to the base folder.
@@ -43,13 +19,13 @@ def _download_and_extract_archive(self, url, base_folder, md5) -> None:
     base_folder = os.path.expanduser(base_folder)
     filename = os.path.basename(url)
 
-    _download_url(url, base_folder, md5)
+    download_url(url, base_folder, md5)
     archive = os.path.join(base_folder, filename)
     print(f"Extracting {archive} to {base_folder}")
-    _extract_tar_archive(archive, base_folder, True)
+    extract_tar_archive(archive, base_folder, True)
 
 
-def _retreive(self, url, save_location, chunk_size: int = 1024 * 32) -> None:
+def retreive(url, save_location, chunk_size: int = 1024 * 32) -> None:
     """
         Downloads a file from a given URL and saves it to the specified location.
 
@@ -79,7 +55,7 @@ def _retreive(self, url, save_location, chunk_size: int = 1024 * 32) -> None:
         print(f"An error occurred: {str(e)}")
 
 
-def _download_url(self, url: str, base_folder: str, md5: str = None) -> None:
+def download_url(url: str, base_folder: str, md5: str = None) -> None:
     """Downloads the file from the url to the specified folder
 
     Args:
@@ -94,19 +70,19 @@ def _download_url(self, url: str, base_folder: str, md5: str = None) -> None:
     os.makedirs(base_folder, exist_ok=True)
 
     # check if the file already exists
-    if _check_file(file_path, md5):
+    if check_file(file_path, md5):
         print(f"File {file_path} already exists. Using that version")
         return
 
     print(f"Downloading {url} to file_path")
-    _retreive(url, file_path)
+    retreive(url, file_path)
 
     # check integrity of downloaded file
-    if not _check_file(file_path, md5):
+    if not check_file(file_path, md5):
         raise RuntimeError("File not found or corrupted.")
 
 
-def _extract_tar_archive(self, from_path: str, to_path: str = None, remove_finished: bool = False) -> str:
+def extract_tar_archive(from_path: str, to_path: str = None, remove_finished: bool = False) -> str:
     """Extract a tar archive.
 
     Args:
@@ -128,7 +104,7 @@ def _extract_tar_archive(self, from_path: str, to_path: str = None, remove_finis
 
     return to_path
 
-def _compute_md5(self, filepath: str, chunk_size: int = 1024 * 1024) -> str:
+def compute_md5(filepath: str, chunk_size: int = 1024 * 1024) -> str:
     with open(filepath, "rb") as f:
         md5 = hashlib.md5()
         while chunk := f.read(chunk_size):
@@ -136,12 +112,12 @@ def _compute_md5(self, filepath: str, chunk_size: int = 1024 * 1024) -> str:
     return md5.hexdigest()
 
 
-def _check_file(self, filepath: str, md5: str) -> bool:
+def check_file(filepath: str, md5: str) -> bool:
     if not os.path.isfile(filepath):
         return False
     if md5 is None:
         return True
-    return _compute_md5(filepath) == md5
+    return compute_md5(filepath) == md5
 
 def read_params(config_path:str):
     with open(config_path, "r") as file:

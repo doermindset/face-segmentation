@@ -1,6 +1,6 @@
 import os
 import torch
-from utils.utils import download_resources
+from utils.utils import download_and_extract_archive
 from utils.augmentations import resize_image, to_tensor
 from PIL import Image
 from sklearn.model_selection import train_test_split
@@ -18,12 +18,20 @@ def image_transforms(shape):
 
 class LFWDataset(torch.utils.data.Dataset):
 
+    _DATA = (
+        # images
+        ("http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz", None),
+        # segmentation masks as ppm
+        ("https://vis-www.cs.umass.edu/lfw/part_labels/parts_lfw_funneled_gt_images.tgz",
+         "3e7e26e801c3081d651c8c2ef3c45cfc"),
+    )
+
     def __init__(self, base_folder, download=True, split_name: str = 'train'):
         super().__init__()
         self.base_folder = base_folder
         self.image_shape = (256, 256)
         if download:
-            download_resources(base_folder)
+            self._download_resources()
 
         x_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\lfw_funneled'
         y_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\parts_lfw_funneled_gt_images'
@@ -68,3 +76,10 @@ class LFWDataset(torch.utils.data.Dataset):
         sample = {'image': image, 'seg': seg}
 
         return sample
+
+    def _download_resources(self):
+        if not os.path.exists(self.base_folder):
+            os.makedirs(self.base_folder)
+        download_and_extract_archive(url=LFWDataset._DATA[1][0], base_folder=self.base_folder,
+                                      md5=LFWDataset._DATA[1][1])
+        download_and_extract_archive(url=LFWDataset._DATA[0][0], base_folder=self.base_folder, md5=None)
