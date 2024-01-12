@@ -1,12 +1,19 @@
 import numpy as np
 
-def mean_pixel_accuracy(segs, segs_pred):
-    correct_pixels = np.sum((segs == segs_pred).astype(np.float32))
-    total_pixels = np.prod(segs.shape)
 
-    mean_accuracy = correct_pixels / total_pixels
+def mean_pixel_accuracy(gt, pred):
+    gt_np = gt.detach().cpu().numpy()
+    pred_np = pred.detach().cpu().numpy()
 
-    return mean_accuracy
+    predicted_classes = np.argmax(pred_np, axis=1)
+    gt_classes = np.argmax(gt_np, axis=1)
+
+    correct_pixels = np.sum(predicted_classes == gt_classes)
+    total_pixels = gt_np.size // gt_np.shape[1]
+
+    mean_pixel_acc = correct_pixels / total_pixels
+
+    return mean_pixel_acc
 
 
 def mean_iou(segs, segs_pred):
@@ -39,21 +46,7 @@ def frequency_weighted_iou(segs, segs_pred):
 
 def compute_metrics(segs, segs_pred):
 
-    # segs_pred = F.softmax(segs_pred, dim=1)
-    # segs = segs.clone().detach().cpu().numpy().argmax(1)
-    # segs_pred = segs_pred.clone().detach().cpu().numpy().argmax(1)
-    #
-    #
-    # segs_pred = segs_pred.contiguous().view(-1)
-    # segs = segs.contiguous().view(-1)
-    # segs_np = segs.cpu().detach().numpy()
-    # segs_pred_np = segs_pred.cpu().detach().numpy()
-
-    # assert segs_np.shape == segs_pred_np.shape, "Shapes of segs_np and segs_pred_np should be the same."
-
-    # mpa = mean_pixel_accuracy(segs_np, segs_pred_np)
-    # fw_iou = frequency_weighted_iou(segs_np, segs_pred_np)
-
+    mpa = mean_pixel_accuracy(segs, segs_pred)
     m_iou = mean_iou(segs, segs_pred)
 
-    return m_iou
+    return mpa, m_iou

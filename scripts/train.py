@@ -8,14 +8,14 @@ from torch.utils.data import DataLoader
 from metrics.segmentation_metrics import compute_metrics
 from models.uNet import UNet
 from tqdm import tqdm
-
+from model_checkpoint import ModelCheckpoint
 
 step = 0
+
 
 def test(model, test_loader, device):
     model.eval()
     mean_accuracy, mean_iou, mean_fw_iou = [], [], []
-
 
     with torch.no_grad():
         for batch_idx, data in tqdm(enumerate(test_loader), desc="evaluate_unet"):
@@ -25,23 +25,17 @@ def test(model, test_loader, device):
 
             segs_pred = model(imgs)
 
-            # iou, mean_iou_val, mean_iou_vec_val = compute_metrics(segs, segs_pred)
-            #
-            # mean_iou_1.append(iou)
-            # mean_iou_2.append(mean_iou_val)
-            # mean_iou_3.append(mean_iou_vec_val)
+            mpa, m_iou = compute_metrics(segs, segs_pred)
+            mean_accuracy.append(mpa)
+            mean_iou.append(m_iou)
 
-    # wandb.log({"Test Mean pixel accuracy": np.mean(mean_accuracy),
-    #            "Test IoU": np.mean(mean_iou),
-    #            "Test FWIoU": np.mean(mean_fw_iou)})
+    wandb.log({"Test Mean Pixel Acc": np.mean(mean_accuracy), "Test Mean IoU": np.mean(mean_iou)}, step=step)
 
 
-
-def val(model, val_loader, criterion, config, device, epoch):
+def val(model, val_loader, criterion, config, device, epoch, model_ckpt):
     global step
     running_loss = 0.0
     mean_accuracy, mean_iou, mean_fw_iou = [], [], []
-    mean_iou_1, mean_iou_2, mean_iou_3 = [], [], []
     table = wandb.Table(columns=["id", "image", "pred", "gt"])
 
     model.eval()
@@ -63,33 +57,30 @@ def val(model, val_loader, criterion, config, device, epoch):
             loss = criterion(segs_pred, segs)
 
             if batch_idx < 5:
-                table.add_data(*[f'{step}_{batch_idx}', wandb.Image(imgs[0]), wandb.Image(segs_pred[0]), wandb.Image(segs[0])])
+                table.add_data(
+                    *[f'{step}_{batch_idx}', wandb.Image(imgs[0]), wandb.Image(segs_pred[0]), wandb.Image(segs[0])])
 
             running_loss += float(loss)
             val_loss = float(running_loss) / (batch_idx + 1)
 
             pbar.set_description(f'Validation [ E {epoch}, L {loss}, L_Avg {val_loss}')
 
-            # mpa, iou, fw_iou = compute_metrics(segs, segs_pred)
-            # mean_accuracy.append(mpa)
-            # mean_fw_iou.append(fw_iou)
-            m_iou = compute_metrics(segs, segs_pred)
+            mpa, m_iou = compute_metrics(segs, segs_pred)
+            mean_accuracy.append(mpa)
             mean_iou.append(m_iou)
 
         val_loss = float(running_loss) / len(val_loader)
-        # wandb.log({"Validation Loss": val_loss,
-        #            "Validation Mean pixel accuracy": np.mean(mean_accuracy),
-        #            "Validation IoU": np.mean(mean_iou),
-        #            "Validation FWIoU": np.mean(mean_fw_iou),
-        #            "Images": table}, step=step)
 
         wandb.log({"Validation Loss": val_loss,
-                   "Validation Mean IoU": np.mean(mean_iou),
-                   "Images Data": table}, step=step)
+                   "Validation Mean Pixel Acc": np.mean(mean_accuracy),
+                   "Validation Mean IoU": np.mean(mean_iou)}, step=step)
+
+        wandb.log({"Images Data": table})
+
+        model_ckpt(model, epoch, np.mean(mean_iou))
 
 
 def train(model, train_loader, criterion, optimizer, config, device, epoch):
-
     running_loss = 0.0
     global step
 
@@ -125,7 +116,6 @@ def train(model, train_loader, criterion, optimizer, config, device, epoch):
 
 
 def model_pipeline(hyperparameters):
-
     with wandb.init(project="pytorch-demo", config=hyperparameters, dir=rf"C:\work\an 3\dl\face-segmentation"):
         config = wandb.config
 
@@ -161,8 +151,9 @@ def model_pipeline(hyperparameters):
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+        model_checkpoint = ModelCheckpoint(0.0, True, 5, "mean_iou")
         for epoch in range(config.epochs):
-            val(model, val_loader, criterion, config, device, epoch)
+            val(model, val_loader, criterion, config, device, epoch, model_checkpoint)
             train(model, train_loader, criterion, optimizer, config, device, epoch)
 
         test(model, test_loader, device)
@@ -170,7 +161,6 @@ def model_pipeline(hyperparameters):
 
 
 if __name__ == '__main__':
-
     config = dict(
         epochs=30,
         classes=3,
@@ -181,5 +171,3 @@ if __name__ == '__main__':
         log_freq=10)
 
     model_pipeline(config)
-
-
