@@ -33,8 +33,12 @@ class LFWDataset(torch.utils.data.Dataset):
         if download:
             self._download_resources()
 
-        x_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\lfw_funneled'
-        y_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\parts_lfw_funneled_gt_images'
+        if os.path.exists(rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\lfw_funneled'):
+            x_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\lfw_funneled'
+            y_path = rf'C:\work\an 3\dl\face-segmentation\data\lfw_dataset\parts_lfw_funneled_gt_images'
+        else:
+            x_path = rf'/content/face-segmentation/data/lfw_dataset/lfw_funneled'
+            y_path = rf'/content/face-segmentation/data/lfw_dataset/parts_lfw_funneled_gt_images'
         self.X = []
         self.Y = [os.path.join(y_path, img) for img in os.listdir(y_path) if
                   img.endswith('ppm') and not img.startswith('.')]
