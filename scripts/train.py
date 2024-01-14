@@ -29,7 +29,9 @@ def test(model, test_loader, device):
             mean_accuracy.append(mpa)
             mean_iou.append(m_iou)
 
-    wandb.log({"Test Mean Pixel Acc": np.mean(mean_accuracy), "Test Mean IoU": np.mean(mean_iou)}, step=step)
+    wandb.log({"Test Mean Pixel Acc": np.mean(mean_accuracy),
+               "Test Mean IoU": np.mean(mean_iou),
+               "Test Frequency Weighted IoU": np.mean(mean_fw_iou)}, step=step)
 
 
 def val(model, val_loader, criterion, config, device, epoch, model_ckpt):
@@ -65,15 +67,17 @@ def val(model, val_loader, criterion, config, device, epoch, model_ckpt):
 
             pbar.set_description(f'Validation [ E {epoch}, L {loss}, L_Avg {val_loss}')
 
-            mpa, m_iou = compute_metrics(segs, segs_pred)
+            mpa, m_iou, m_fw_iou = compute_metrics(segs, segs_pred)
             mean_accuracy.append(mpa)
             mean_iou.append(m_iou)
+            mean_fw_iou.append(m_fw_iou)
 
         val_loss = float(running_loss) / len(val_loader)
 
         wandb.log({"Validation Loss": val_loss,
                    "Validation Mean Pixel Acc": np.mean(mean_accuracy),
-                   "Validation Mean IoU": np.mean(mean_iou)}, step=step)
+                   "Validation Mean IoU": np.mean(mean_iou),
+                   "Validation Frequency Weighted IoU": np.mean(mean_fw_iou)}, step=step)
 
         wandb.log({"Images Data": table})
 
@@ -115,7 +119,7 @@ def train(model, train_loader, criterion, optimizer, config, device, epoch):
             wandb.log({"Training Loss": train_loss}, step=step)
 
 
-def model_pipeline(hyperparameters):
+def model_pipeline(hyperparameters=None):
     with wandb.init(project="pytorch-demo", config=hyperparameters, dir=rf"C:\work\an 3\dl\face-segmentation"):
         config = wandb.config
 

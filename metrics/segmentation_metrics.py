@@ -1,52 +1,28 @@
 import numpy as np
+from sklearn.metrics import confusion_matrix
 
 
-def mean_pixel_accuracy(gt, pred):
-    gt_np = gt.detach().cpu().numpy()
-    pred_np = pred.detach().cpu().numpy()
+def compute_metrics(target, predicted):
+    y_pred = predicted.argmax(dim=1).flatten().to("cpu")
+    y_true = target.argmax(dim=1).flatten().to("cpu")
 
-    predicted_classes = np.argmax(pred_np, axis=1)
-    gt_classes = np.argmax(gt_np, axis=1)
+    confusion_tensor = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
 
-    correct_pixels = np.sum(predicted_classes == gt_classes)
-    total_pixels = gt_np.size // gt_np.shape[1]
+    intersection = np.diag(confusion_tensor)
+    ground_truth_set = confusion_tensor.sum(axis=1)
 
-    mean_pixel_acc = correct_pixels / total_pixels
+    # Compute Mean Precision Accuracy
+    mpa = (intersection / ground_truth_set.astype(np.float32)).mean()
 
-    return mean_pixel_acc
+    predicted_set = confusion_tensor.sum(axis=0)
+    union = ground_truth_set + predicted_set - intersection
 
+    # Compute the IoU
+    iou = intersection / union.astype(np.float32)
+    m_iou = iou.mean()
 
-def mean_iou(segs, segs_pred):
-    segs_np = segs.clone().detach().cpu().numpy().argmax(1)
-    segs_pred_np = segs_pred.clone().detach().cpu().numpy().argmax(1)
+    # Compute Frequency Weighted IoU
+    total_pixels = ground_truth_set.sum()
+    fw_iou = np.dot(ground_truth_set.astype(float) / total_pixels, iou)
 
-    intersection = np.logical_and(segs_np, segs_pred_np).sum((1, 2))
-    union = np.logical_or(segs_np, segs_pred_np).sum((1, 2))
-
-    iou_score = np.where(union == 0, 0, intersection / union)
-    m_iou = iou_score.mean()
-
-    return m_iou
-
-def frequency_weighted_iou(segs, segs_pred):
-    intersection = np.logical_and(segs, segs_pred)
-    union = np.logical_or(segs, segs_pred)
-
-    class_intersection = np.sum(intersection, axis=(1, 2))
-    class_union = np.sum(union, axis=(1, 2))
-    class_iou = class_intersection / class_union
-
-    class_frequency = np.sum(segs, axis=(1, 2)) / np.prod(segs.shape[1:])
-
-    weighted_iou = class_iou * class_frequency
-    fw_iou = np.sum(weighted_iou) / np.sum(class_frequency)
-
-    return fw_iou
-
-
-def compute_metrics(segs, segs_pred):
-
-    mpa = mean_pixel_accuracy(segs, segs_pred)
-    m_iou = mean_iou(segs, segs_pred)
-
-    return mpa, m_iou
+    return mpa, m_iou, fw_iou
