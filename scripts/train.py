@@ -25,9 +25,10 @@ def test(model, test_loader, device):
 
             segs_pred = model(imgs)
 
-            mpa, m_iou = compute_metrics(segs, segs_pred)
+            mpa, m_iou, m_fw_iou = compute_metrics(segs, segs_pred)
             mean_accuracy.append(mpa)
             mean_iou.append(m_iou)
+            mean_fw_iou.append(m_fw_iou)
 
     wandb.log({"Test Mean Pixel Acc": np.mean(mean_accuracy),
                "Test Mean IoU": np.mean(mean_iou),
@@ -123,6 +124,9 @@ def model_pipeline(hyperparameters=None):
     with wandb.init(project="pytorch-demo", config=hyperparameters, dir=rf"C:\work\an 3\dl\face-segmentation"):
         config = wandb.config
 
+        global step
+        step = 0
+
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         train_dataset = LFWDataset(download=False, base_folder='lfw_dataset', split_name="train")
@@ -154,7 +158,12 @@ def model_pipeline(hyperparameters=None):
         model = model.to(device)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+
+        if config.optimizer == "adam":
+            optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+        elif config.optimizer == "sgd":
+            optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
+
         model_checkpoint = ModelCheckpoint(0.0, True, 5, "mean_iou")
         for epoch in range(config.epochs):
             val(model, val_loader, criterion, config, device, epoch, model_checkpoint)
@@ -172,6 +181,30 @@ if __name__ == '__main__':
         learning_rate=0.0001,
         dataset="LFW",
         architecture="UNet",
-        log_freq=10)
+        log_freq=10,
+        optimizer="adam")
 
-    model_pipeline(config)
+    sweep_config = {
+        'method': 'grid',
+        'metric': {'name': 'Validation Loss', 'goal': 'minimize'},
+        'parameters': {
+            'learning_rate': {
+                'values': [0.01, 0.001, 0.0005]
+            },
+            'batch_size': {
+                'values': [16, 32]
+            },
+            'epochs': {'value': 30},
+            'classes': {'value': 3},
+            'log_freq': {'value': 10},
+            'optimizer': {
+                'values': ['adam', 'sgd']
+            }
+
+        }
+    }
+    # sweep_id = wandb.sweep(sweep_config, project="face-segmentation-sweeps-grid")
+    #
+    wandb.agent("cvdl-3/face-segmentation-sweeps-grid/0gcrzdkv", model_pipeline, count=3)
+
+    # model_pipeline(config)
