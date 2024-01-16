@@ -23,7 +23,7 @@ class ModelCheckpoint:
                 'model_state_dict': model.state_dict(),
                 'best_metric_val': self.best_metric_val,
             }
-            model_path = rf'checkpoints\{wandb.run.name}_ckpt_epoch_{epoch}_{self.metric_name}.pth'
+            model_path = rf'checkpoints/{wandb.run.name}_ckpt_epoch_{epoch}_{self.metric_name}.pth'
             torch.save(checkpoint, model_path)
 
             self.write_artifact(model_path, metric_val)
