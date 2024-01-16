@@ -117,7 +117,8 @@ def train(model, train_loader, criterion, optimizer, config, device, epoch):
 
         batch_idx += 1
         if batch_idx % config.log_freq == 0:
-            wandb.log({"Training Loss": train_loss}, step=step)
+            wandb.log({"Training Loss": train_loss,
+                       "Epoch: ": epoch}, step=step)
 
 
 def model_pipeline(hyperparameters=None):
@@ -154,7 +155,7 @@ def model_pipeline(hyperparameters=None):
                                  sampler=None,
                                  num_workers=0)
 
-        model = UNet(n_channels=3, n_classes=3)
+        model = UNet(n_channels=3, n_classes=3, bilinear=config.bilinear)
         model = model.to(device)
 
         criterion = nn.CrossEntropyLoss()
@@ -178,33 +179,11 @@ if __name__ == '__main__':
         epochs=30,
         classes=3,
         batch_size=8,
-        learning_rate=0.0001,
+        learning_rate=0.0005,
         dataset="LFW",
         architecture="UNet",
         log_freq=10,
-        optimizer="adam")
+        optimizer="adam",
+        bilinear=True)
 
-    sweep_config = {
-        'method': 'grid',
-        'metric': {'name': 'Validation Loss', 'goal': 'minimize'},
-        'parameters': {
-            'learning_rate': {
-                'values': [0.01, 0.001, 0.0005]
-            },
-            'batch_size': {
-                'values': [16, 32]
-            },
-            'epochs': {'value': 30},
-            'classes': {'value': 3},
-            'log_freq': {'value': 10},
-            'optimizer': {
-                'values': ['adam', 'sgd']
-            }
-
-        }
-    }
-    # sweep_id = wandb.sweep(sweep_config, project="face-segmentation-sweeps-grid")
-    #
-    wandb.agent("cvdl-3/face-segmentation-sweeps-grid/0gcrzdkv", model_pipeline, count=3)
-
-    # model_pipeline(config)
+    model_pipeline(config)

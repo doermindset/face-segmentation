@@ -5,15 +5,19 @@ import torch.nn.functional as F
 
 class DoubleConv(nn.Module):
 
-    def __init__(self, in_channels, out_channels, mid_channels=None):
+    def __init__(self, in_channels, out_channels, mid_channels=None, bilinear=False):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
+
+        self.bilinear = bilinear
+        padding = 1 if self.bilinear else 0
+
         self.double_conv = nn.Sequential(
-            nn.Conv2d(in_channels, mid_channels, kernel_size=3),
+            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=padding),
             nn.BatchNorm2d(mid_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(mid_channels, out_channels, kernel_size=3),
+            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=padding),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         )
@@ -24,11 +28,11 @@ class DoubleConv(nn.Module):
 
 class Down(nn.Module):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, bilinear=False):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels)
+            DoubleConv(in_channels, out_channels, bilinear=bilinear)
         )
 
     def forward(self, x):
@@ -37,29 +41,31 @@ class Down(nn.Module):
 
 class Up(nn.Module):
 
-    def __init__(self, in_channels, out_channels, bilinear=True):
+    def __init__(self, in_channels, out_channels, bilinear):
         super().__init__()
 
-        # if bilinear, use the normal convolutions to reduce the number of channels
-        if bilinear:
+        self.bilinear = bilinear
+        if self.bilinear:
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2, bilinear=bilinear)
         else:
             self.up = nn.ConvTranspose2d(in_channels , in_channels // 2, kernel_size=2, stride=2)
             self.conv = DoubleConv(in_channels, out_channels)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
-        # # input is CHW
-        # diffY = x2.size()[2] - x1.size()[2]
-        # diffX = x2.size()[3] - x1.size()[3]
-        #
-        # x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
-        #                 diffY // 2, diffY - diffY // 2])
-        crop_h, crop_w = x1.shape[2], x1.shape[3]
-        crop_top = (x2.shape[2] - crop_h) // 2
-        crop_left = (x2.shape[3] - crop_w) // 2
-        x2 = x2[:, :, crop_top:crop_top + crop_h, crop_left:crop_left + crop_w]
+        if self.bilinear:
+            # input is CHW
+            diffY = x2.size()[2] - x1.size()[2]
+            diffX = x2.size()[3] - x1.size()[3]
+
+            x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                            diffY // 2, diffY - diffY // 2])
+        else:
+            crop_h, crop_w = x1.shape[2], x1.shape[3]
+            crop_top = (x2.shape[2] - crop_h) // 2
+            crop_left = (x2.shape[3] - crop_w) // 2
+            x2 = x2[:, :, crop_top:crop_top + crop_h, crop_left:crop_left + crop_w]
 
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
@@ -70,6 +76,6 @@ class OutConv(nn.Module):
         super(OutConv, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
-    def forward(self, x, shape):
+    def forward(self, x, shape, bilinear):
         x1 = self.conv(x)
-        return F.interpolate(x1, shape, mode='bilinear', align_corners=False)
+        return x1 if bilinear else F.interpolate(x1, shape, mode='bilinear', align_corners=False)

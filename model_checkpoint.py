@@ -28,10 +28,11 @@ class ModelCheckpoint:
 
             self.write_artifact(model_path, metric_val)
 
-            self.saved_models.append(model_path)
+            self.saved_models.append((metric_val, model_path))
+            self.saved_models = sorted(self.saved_models, key=lambda x: x[0], reverse=self.increasing_metric)
 
         if len(self.saved_models) > self.n:
-            to_remove = self.saved_models.pop()
+            _, to_remove = self.saved_models.pop()
             os.remove(to_remove)
 
     def write_artifact(self, model_path, metric_val):
