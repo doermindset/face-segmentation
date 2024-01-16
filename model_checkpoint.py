@@ -36,6 +36,6 @@ class ModelCheckpoint:
 
     def write_artifact(self, model_path, metric_val):
 
-        artifact = wandb.Artifact(f"unet_m_iou", type='model', metadata={'metric': metric_val})
+        artifact = wandb.Artifact(f"{wandb.run.name}_unet_m_iou", type='model', metadata={'metric': metric_val})
         artifact.add_file(model_path)
         wandb.run.log_artifact(artifact)
