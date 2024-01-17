@@ -9,6 +9,7 @@ from metrics.segmentation_metrics import compute_metrics
 from models.uNet import UNet
 from tqdm import tqdm
 from model_checkpoint import ModelCheckpoint
+from utils.utils import get_mask
 
 step = 0
 
@@ -34,14 +35,12 @@ def test(model, test_loader, device):
                "Test Mean IoU": np.mean(mean_iou),
                "Test Frequency Weighted IoU": np.mean(mean_fw_iou)}, step=step)
 
-
 def val(model, val_loader, criterion, config, device, epoch, model_ckpt):
     global step
     running_loss = 0.0
     mean_accuracy, mean_iou, mean_fw_iou = [], [], []
     table = wandb.Table(columns=["id", "image", "pred", "gt"])
 
-    model.eval()
 
     pbar = tqdm(enumerate(val_loader, 0),
                 unit=' images',
@@ -60,8 +59,9 @@ def val(model, val_loader, criterion, config, device, epoch, model_ckpt):
             loss = criterion(segs_pred, segs)
 
             if batch_idx < 5:
+                mask = get_mask(segs_pred[0], class_num=config.classes)
                 table.add_data(
-                    *[f'{step}_{batch_idx}', wandb.Image(imgs[0]), wandb.Image(segs_pred[0]), wandb.Image(segs[0])])
+                    *[f'{step}_{batch_idx}', wandb.Image(imgs[0]), wandb.Image(mask), wandb.Image(segs[0])])
 
             running_loss += float(loss)
             val_loss = float(running_loss) / (batch_idx + 1)

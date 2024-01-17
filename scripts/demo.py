@@ -2,7 +2,7 @@ import gradio as gr
 import torch
 from PIL import Image
 from torchvision import transforms
-
+from utils.utils import get_mask
 def show_mask(input_image):
 
     model = torch.jit.load(rf"C:\work\an 3\dl\face-segmentation\checkpoints\unet_scripted_model.pt")
@@ -16,10 +16,8 @@ def show_mask(input_image):
     with torch.no_grad():
         output = model(batch_image)
 
-    output = (output - output.min()) / (output.max() - output.min())
-
-    post_process = transforms.ToPILImage()
-    pil_image = post_process(output.squeeze())
+    mask = get_mask(output.squeeze(), 3)
+    pil_image = Image.fromarray(mask)
 
     return pil_image
 

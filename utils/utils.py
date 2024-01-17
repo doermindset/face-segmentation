@@ -4,6 +4,7 @@ import tarfile
 import requests
 import yaml
 from tqdm import tqdm
+import numpy as np
 
 
 def download_and_extract_archive(url, base_folder, md5) -> None:
@@ -104,6 +105,7 @@ def extract_tar_archive(from_path: str, to_path: str = None, remove_finished: bo
 
     return to_path
 
+
 def compute_md5(filepath: str, chunk_size: int = 1024 * 1024) -> str:
     with open(filepath, "rb") as f:
         md5 = hashlib.md5()
@@ -119,7 +121,8 @@ def check_file(filepath: str, md5: str) -> bool:
         return True
     return compute_md5(filepath) == md5
 
-def read_params(config_path:str):
+
+def read_params(config_path: str):
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
 
@@ -139,3 +142,20 @@ def sample_to_cuda(data):
         return data_cuda
     else:
         return data.to('cuda')
+
+
+def get_mask(seg_pred, class_num):
+    colors = {
+        0: [255, 0, 0],
+        1: [0, 255, 0],
+        2: [0, 0, 255]
+    }
+
+    predictions = seg_pred.argmax(dim=0).cpu().numpy()
+
+    rgb_image = np.zeros((predictions.shape[0], predictions.shape[1], 3), dtype=np.uint8)
+
+    for cls in range(class_num):
+        rgb_image[predictions == cls] = colors[cls]
+
+    return rgb_image
